@@ -10,11 +10,20 @@ import importlib
 import torch
 import random
 import numpy as np
+import torch.serialization
+from torch.optim.swa_utils import SWALR
+import json
+import os
+from datetime import datetime
+
+    # === Create run folder ===
+
+
 
 def main():
-    batch_size = 64
-    num_workers = 12
-    num_epochs = 12
+    batch_size = 128
+    num_workers = 8
+    num_epochs = 15
     learning_rate = 1e-3
     val_metric = 'val_acc'
     mode = 'max'
@@ -37,6 +46,20 @@ def main():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+
+    
+        # === Create run folder ===
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = os.path.join("runs", timestamp)
+    os.makedirs(run_dir, exist_ok=True)
+    checkpoints_dir = os.path.join(run_dir, "checkpoints")
+    os.makedirs(checkpoints_dir, exist_ok=True)
+
+    print(f"\n📂 Results and checkpoints will be saved in: {run_dir}\n")
+
+    # Initialize dictionary to store all folds' results
+    all_results = {}
+
     for current, remaining in iterate_fold([0, 1, 2, 3, 4]):
 
         dataloader = ECGDataLoader(
@@ -55,12 +78,12 @@ def main():
         model = ModelClass(num_classes=num_classes, learning_rate=learning_rate)
 
         checkpoint_callback = ModelCheckpoint(
-                    dirpath='checkpoints/',
-                    filename=f'{current}-ecg-{{epoch:02d}}-{{{val_metric}:.4f}}',
-                    save_top_k=1,
-                    monitor=val_metric,
-                    mode=mode
-                )
+            dirpath=checkpoints_dir,
+            filename=f'{current}-ecg-{{epoch:02d}}-{{{val_metric}:.4f}}',
+            save_top_k=1,
+            monitor=val_metric,
+            mode=mode
+        )
 
         trainer = L.Trainer(
             max_epochs=num_epochs,
@@ -73,8 +96,41 @@ def main():
 
         best_model_path = checkpoint_callback.best_model_path
         print("best_model_path", best_model_path)
-        model = ModelClass.load_from_checkpoint(best_model_path, num_classes=num_classes, learning_rate=learning_rate)
-        trainer.test(model, dataloader.test_dataloader()) 
+        with torch.serialization.safe_globals([SWALR, getattr]):
+            model = ModelClass.load_from_checkpoint(
+                best_model_path,
+                num_classes=num_classes,
+                learning_rate=learning_rate,
+                weights_only=False
+            )
+
+        # Test
+        test_results = trainer.test(model, dataloader.test_dataloader())
+
+        # Pretty print
+        print(f"\n✅ Test results for fold {current}:")
+        for k, v in test_results[0].items():
+            print(f"{k}: {v:.4f}")
+
+        # Save into the big dictionary
+        all_results[f"fold_{current}"] = test_results[0]
+
+    # Save all results in a single JSON file
+    all_results_file = os.path.join(run_dir, "all_folds_test_results.json")
+    with open(all_results_file, "w") as f:
+        json.dump(all_results, f, indent=4)
+
+    note_path = os.path.join(run_dir, "note.txt")    
+
+    with open (note_path, "w") as note_file:
+        note_file.write("Augment -> Crop -> Downsample -> Normalize\n")
+        note_file.write("""GaussianNoise(prob=0.2)
+                           ChannelResize()
+                           BaselineShift(prob=0.2)
+                           BaselineWander(prob=0.2)
+                           PowerlineNoise(prob=0.2)""")
+
+    print(f"\n📄 All test results saved to: {all_results_file}\n")
 
 if __name__ == '__main__':
     main()
