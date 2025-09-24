@@ -86,9 +86,11 @@ def main():
 
         trainer.fit(model, dataloader.train_dataloader(), dataloader.val_dataloader())
 
-        best_model_path = checkpoint_callback.best_model_path
-        print("best_model_path", best_model_path)
-        model = ModelClass.load_from_checkpoint(best_model_path, num_classes=num_classes, learning_rate=learning_rate)
+        # best_model_path = checkpoint_callback.best_model_path
+        # print("best_model_path", best_model_path)
+        # model = ModelClass.load_from_checkpoint(best_model_path, num_classes=num_classes, learning_rate=learning_rate)
+
+
         # Test
         test_results = trainer.test(model, dataloader.test_dataloader())
 
@@ -109,8 +111,8 @@ def main():
 
     with open (note_path, "w") as note_file:
         note_file.write("Crop -> Augment -> Downsample -> Normalize\n")
-        # note_file.write("No augment")
         note_file.write('batch: 256, epoch=15')
+        note_file.write('Attention + Positional Encoding\n')
         note_file.write("""
 BaselineWander(prob=0.5, C=0.0001),
 GaussianNoise(prob=0.5, scale=0.0001),

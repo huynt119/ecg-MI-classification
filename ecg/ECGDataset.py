@@ -46,10 +46,11 @@ class ECGDataset(Dataset):
             idx = idx.tolist()
 
         rpeak_index = self.info.iloc[idx, 2]
+        pt_path = self.info.iloc[idx, 1]
         heartbeat = self._load_signal(os.path.join(self.data_dir, self.info.iloc[idx, 1])).t()[:, rpeak_index - self.sample_before:rpeak_index + self.sample_after+1]
         label = self.label_dict[self.info.iloc[idx, 3]]
         patient_number = self.info.iloc[idx, 0]
         if self.transform:
             heartbeat = self.transform(heartbeat)
 
-        return heartbeat, label, patient_number
+        return heartbeat, label, patient_number, rpeak_index, pt_path

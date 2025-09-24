@@ -3,6 +3,25 @@ import torch.nn as nn
 import lightning as L
 import torchmetrics
 from torch.optim.lr_scheduler import CosineAnnealingLR
+import math
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=500):
+        super(PositionalEncoding, self).__init__()
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)  # [1, max_len, d_model]
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        # x: [batch, seq_len, d_model]
+        x = x + self.pe[:, :x.size(1), :]
+        return x
+
+
 class SEBlock(nn.Module):
     def __init__(self, in_channels, reduction=16):
         super(SEBlock, self).__init__()
@@ -95,10 +114,13 @@ class DACB(nn.Module):
         
         return out
 
+
 class MCDANNNet(nn.Module):
     def __init__(self, num_classes=3):
         super(MCDANNNet, self).__init__()
         self.channels = nn.ModuleList([DACB() for _ in range(12)])  # 12 module per 12 leads
+        self.pos_encoder = PositionalEncoding(d_model=64, max_len=12)
+        self.attn = nn.MultiheadAttention(embed_dim=64, num_heads=4, batch_first=True)
         self.classifier = nn.Sequential(
             nn.Linear(64 * 12, num_classes)
         )
@@ -116,7 +138,10 @@ class MCDANNNet(nn.Module):
             lead = x[:, i, :].unsqueeze(1)  
             feat = channel(lead).squeeze(-1) 
             features.append(feat)
-        combined = torch.cat(features, dim=1)  
+        features = torch.stack(features, dim=1)  # [batch, 12, 64]
+        features = self.pos_encoder(features)    # Thêm positional encoding
+        attn_out, _ = self.attn(features, features, features)
+        combined = attn_out.reshape(attn_out.size(0), -1)  # [batch, 12*64]
         return self.classifier(combined)
 
 class MCDANN(L.LightningModule):
@@ -133,14 +158,14 @@ class MCDANN(L.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-        x, y, _ = batch
+        x, y, _, _, _ = batch
         logits = self(x)
         loss = self.criterion(logits, y)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, _ = batch
+        x, y, _, _, _ = batch
         logits = self(x)
         loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
@@ -150,7 +175,7 @@ class MCDANN(L.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, y, _ = batch
+        x, y, _, _, _ = batch
         logits = self(x)
         loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
