@@ -15,7 +15,7 @@ import os
 from datetime import datetime
 
 def main():
-    batch_size = 256 
+    batch_size = 256
     num_workers = 2
     num_epochs = 15
     learning_rate = 1e-3
@@ -27,7 +27,10 @@ def main():
     split_ratio = 0.8
     sample_before = 198
     sample_after = 400
+    # sample_before = 598
+    # sample_after = 3400
     model_name = 'MCDANN'  #set model name here
+    # model_name = 'SRT'  #set model name here
     model_module = importlib.import_module(f'ECGModel.{model_name}')
     ModelClass = getattr(model_module, model_name)
 
@@ -86,12 +89,11 @@ def main():
 
         trainer.fit(model, dataloader.train_dataloader(), dataloader.val_dataloader())
 
-        # best_model_path = checkpoint_callback.best_model_path
-        # print("best_model_path", best_model_path)
-        # model = ModelClass.load_from_checkpoint(best_model_path, num_classes=num_classes, learning_rate=learning_rate)
+        # Lưu model đã SWA
+        swa_model_path = os.path.join(checkpoints_dir, f'{current}-ecg-swa.ckpt')
+        trainer.save_checkpoint(swa_model_path)
 
-
-        # Test
+        # Test với model đã SWA
         test_results = trainer.test(model, dataloader.test_dataloader())
 
         # Pretty print
@@ -111,7 +113,7 @@ def main():
 
     with open (note_path, "w") as note_file:
         note_file.write("Crop -> Augment -> Downsample -> Normalize\n")
-        note_file.write('batch: 256, epoch=15')
+        note_file.write('batch: 256, epoch=15\n')
         note_file.write('Attention + Positional Encoding\n')
         note_file.write("""
 BaselineWander(prob=0.5, C=0.0001),

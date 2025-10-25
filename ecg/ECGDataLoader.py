@@ -175,7 +175,7 @@ class ECGDataLoader(L.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True,
-            pin_memory=True
+            pin_memory=True,
         )
 
     def val_dataloader(self):
@@ -184,7 +184,7 @@ class ECGDataLoader(L.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
-            pin_memory=True
+            pin_memory=True,
         )
 
     def test_dataloader(self):
@@ -193,5 +193,5 @@ class ECGDataLoader(L.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
-            pin_memory=True
+            pin_memory=True,
         )

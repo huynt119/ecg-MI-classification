@@ -5,6 +5,16 @@ import json
 import csv
 from ECGDataLoader import ECGDataLoader
 import lightning as L
+import numpy as np
+import random
+import torch.serialization
+from builtins import getattr  # Thêm dòng này
+
+print("PyTorch version:", torch.__version__)
+print("Lightning version:", L.__version__)
+
+# Thêm safe globals trước khi load bất kỳ checkpoint nào
+torch.serialization.add_safe_globals([getattr])
 
 def test_all_checkpoints(
     checkpoints_dir,
@@ -19,10 +29,19 @@ def test_all_checkpoints(
     learning_rate=1e-3,
     model_name='MCDANN'
 ):
+    random_seed = 30
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     model_module = importlib.import_module(f'ECGModel.{model_name}')
     ModelClass = getattr(model_module, model_name)
 
-    checkpoint_files = [f for f in os.listdir(checkpoints_dir) if f.endswith('.ckpt')]
+    checkpoint_files = [f for f in os.listdir(checkpoints_dir) if f.endswith('swa.ckpt')]
     checkpoint_files.sort()
 
     all_results = {}
@@ -50,11 +69,16 @@ def test_all_checkpoints(
         dataloader.setup()
 
         ckpt_path = os.path.join(checkpoints_dir, ckpt_file)
-        model = ModelClass.load_from_checkpoint(
-            ckpt_path,
-            num_classes=num_classes,
-            learning_rate=learning_rate
-        )
+        
+        # Load checkpoint thủ công
+        ckpt = torch.load(ckpt_path, weights_only=False)
+        
+        # Khởi tạo model mới
+        model = ModelClass(num_classes=num_classes, learning_rate=learning_rate)
+        
+        # Load state_dict
+        model.load_state_dict(ckpt['state_dict'])
+        
         model.eval()
         model.to('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -109,5 +133,5 @@ def test_all_checkpoints(
     print(f"📝 Detailed predictions saved to: {csv_path}")
 
 if __name__ == "__main__":
-    checkpoints_dir = "runs/20250814_221244/checkpoints"
+    checkpoints_dir = "runs/20251024_111304/checkpoints"
     test_all_checkpoints(checkpoints_dir)

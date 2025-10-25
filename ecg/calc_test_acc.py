@@ -54,7 +54,7 @@ def count_label_per_patient(csv_path, out_csv_path):
     return acc_dict
 
 if __name__ == "__main__":
-    folder = "20250814_221244"
+    folder = "20251024_085235"
     csv_path = f"runs/{folder}/checkpoints/all_checkpoints_predictions.csv"  # sửa lại đường dẫn nếu cần
     out_csv_path = f"runs/{folder}/checkpoints/patient_majority_vote_detail.csv"
     calc_test_acc(csv_path)

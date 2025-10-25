@@ -1,10 +1,9 @@
 import json
 import os
 
-data_dir = r"/mnt/banana/student/huynt119/ecg-MI/ecg/runs"
+data_dir = r"/mnt/apple/k66/huynt119/ecg-MI-classification/ecg/runs"
 folders = os.listdir(data_dir)
 paths = [os.path.join(data_dir, folder, 'all_folds_test_results.json') for folder in folders]
-paths.append(r"/mnt/banana/student/huynt119/ecg-MI/ecg/no_aug.json")
 
 best_avg_acc = 0
 
