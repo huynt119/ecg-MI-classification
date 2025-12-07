@@ -27,9 +27,9 @@ def main():
     split_ratio = 0.8
     sample_before = 198
     sample_after = 400
-    # sample_before = 598
-    # sample_after = 3400
     model_name = 'MCDANN'  #set model name here
+    # sample_before = 198
+    # sample_after = 400
     # model_name = 'SRT'  #set model name here
     model_module = importlib.import_module(f'ECGModel.{model_name}')
     ModelClass = getattr(model_module, model_name)

@@ -47,7 +47,22 @@ class ECGDataset(Dataset):
 
         rpeak_index = self.info.iloc[idx, 2]
         pt_path = self.info.iloc[idx, 1]
-        heartbeat = self._load_signal(os.path.join(self.data_dir, self.info.iloc[idx, 1])).t()[:, rpeak_index - self.sample_before:rpeak_index + self.sample_after+1]
+        signal = self._load_signal(os.path.join(self.data_dir, pt_path)).t()
+        start = rpeak_index - self.sample_before
+        end = rpeak_index + self.sample_after + 1
+        heartbeat = signal[:, start:end]
+
+        # Chuẩn hóa shape
+        target_len = self.sample_before + self.sample_after + 1
+        cur_len = heartbeat.shape[1]
+        if cur_len < target_len:
+            # Padding nếu thiếu
+            pad_size = target_len - cur_len
+            heartbeat = torch.nn.functional.pad(heartbeat, (0, pad_size))
+        elif cur_len > target_len:
+            # Cắt nếu thừa
+            heartbeat = heartbeat[:, :target_len]
+
         label = self.label_dict[self.info.iloc[idx, 3]]
         patient_number = self.info.iloc[idx, 0]
         if self.transform:

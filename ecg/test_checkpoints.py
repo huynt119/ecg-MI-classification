@@ -25,9 +25,12 @@ def test_all_checkpoints(
     split_ratio=0.8,
     sample_before=198,
     sample_after=400,
+    # sample_before=598,
+    # sample_after=3400,
     num_classes=2,
     learning_rate=1e-3,
     model_name='MCDANN'
+    # model_name='SRT'
 ):
     random_seed = 30
     random.seed(random_seed)
@@ -133,5 +136,5 @@ def test_all_checkpoints(
     print(f"📝 Detailed predictions saved to: {csv_path}")
 
 if __name__ == "__main__":
-    checkpoints_dir = "runs/20251024_111304/checkpoints"
+    checkpoints_dir = "runs/20251024_085235/checkpoints"
     test_all_checkpoints(checkpoints_dir)
